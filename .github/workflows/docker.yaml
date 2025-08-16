@@ -12,7 +12,6 @@ concurrency:
 env:
   CR_REGISTRY: crpiop5kci1440r661pk     # your YCR registry id
   CR_REPOSITORY: nginx                 # your repo name in YCR
-  IMAGE_NAME: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}
   DOCKERFILE: ./nginx/Dockerfile
   CONTEXT: .                            # path to build context
   # Tag scheme: latest + short SHA
@@ -40,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          images: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}
           tags: |
             type=raw,value=latest
             type=sha,format=short
