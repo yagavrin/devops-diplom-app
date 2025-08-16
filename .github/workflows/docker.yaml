@@ -1,0 +1,59 @@
+name: Build & Push Docker image
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CR_REGISTRY: crpiop5kci1440r661pk     # your YCR registry id
+  CR_REPOSITORY: nginx                 # your repo name in YCR
+  IMAGE_NAME: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}
+  DOCKERFILE: ./nginx/Dockerfile
+  CONTEXT: .                            # path to build context
+  # Tag scheme: latest + short SHA
+  TAGS_SIMPLE: latest,${{ github.sha }}
+
+jobs:
+  dockerhub:
+    name: Docker Hub
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to YCR
+        uses: yc-actions/yc-cr-login@v3
+        with:
+          yc-sa-id: ${{ secrets.YC_SA_ID }}
+
+      - name: Extract metadata (labels, tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
