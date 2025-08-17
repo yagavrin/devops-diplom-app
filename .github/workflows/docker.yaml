@@ -1,8 +1,9 @@
-name: Build & Push Docker image
+name: CI & CD (build on commit, deploy on tag)
 
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   workflow_dispatch:
 
 concurrency:
@@ -10,16 +11,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CR_REGISTRY: crpiop5kci1440r661pk     # your YCR registry id
-  CR_REPOSITORY: nginx                 # your repo name in YCR
+  CR_REGISTRY: crpiop5kci1440r661pk
+  CR_REPOSITORY: nginx
   DOCKERFILE: ./nginx/Dockerfile
   CONTEXT: nginx
-  # Tag scheme: latest + short SHA
-  TAGS_SIMPLE: latest,${{ github.sha }}
+  K8S_NAMESPACE: default
+  K8S_DEPLOYMENT: nginx 
 
 jobs:
-  ycr:
-    name: Docker Hub
+  build_push:
+    name: Prepare image
     runs-on: ubuntu-latest
     environment: prod 
     permissions:
@@ -28,10 +29,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-        # sanity check: fail fast if the secret is missing/empty
-      - name: Verify YC_SA_ID is set
-        run: test -n "${{ secrets.YC_SA_ID }}" || { echo "YC_SA_ID is empty or undefined"; exit 1; }
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -62,3 +59,23 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  deploy:
+    needs: build_push
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" > $GITHUB_WORKSPACE/kubeconfig
+          echo "KUBECONFIG=$GITHUB_WORKSPACE/kubeconfig" >> $GITHUB_ENV
+
+      - name: Set image to tag & rollout
+        run: |
+          IMG="cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.ref_name }}"
+          kubectl -n "${{ env.K8S_NAMESPACE }}" set image deployment/${{ env.K8S_DEPLOYMENT }} \
+            ${{ env.K8S_DEPLOYMENT }}="$IMG"
+          kubectl -n "${{ env.K8S_NAMESPACE }}" rollout status deployment/${{ env.K8S_DEPLOYMENT }}"
