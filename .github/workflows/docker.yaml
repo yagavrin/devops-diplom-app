@@ -21,6 +21,7 @@ jobs:
   ycr:
     name: Docker Hub
     runs-on: ubuntu-latest
+    environment: prod 
     permissions:
       contents: read
       id-token: write
