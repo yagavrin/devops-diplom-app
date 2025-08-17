@@ -18,11 +18,12 @@ env:
   TAGS_SIMPLE: latest,${{ github.sha }}
 
 jobs:
-  dockerhub:
+  ycr:
     name: Docker Hub
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
