@@ -13,7 +13,7 @@ env:
   CR_REGISTRY: crpiop5kci1440r661pk     # your YCR registry id
   CR_REPOSITORY: nginx                 # your repo name in YCR
   DOCKERFILE: ./nginx/Dockerfile
-  CONTEXT: .                            # path to build context
+  CONTEXT: nginx
   # Tag scheme: latest + short SHA
   TAGS_SIMPLE: latest,${{ github.sha }}
 
