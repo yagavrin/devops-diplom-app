@@ -27,6 +27,11 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ inputs.name }}"
+      - name: Write kubeconfig (decode base64)
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > $GITHUB_WORKSPACE/kubeconfig
+          echo "KUBECONFIG=$GITHUB_WORKSPACE/kubeconfig" >> $GITHUB_ENV
+      - name: Show kubeconfig headers (debug)
+        run: |
+          head -n 5 "$KUBECONFIG" || true
+          kubectl config view --minify || true
