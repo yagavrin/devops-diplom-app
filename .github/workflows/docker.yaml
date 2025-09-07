@@ -15,8 +15,8 @@ env:
   CR_REPOSITORY: nginx
   DOCKERFILE: ./nginx/Dockerfile
   CONTEXT: nginx
-  K8S_NAMESPACE: default
-  K8S_DEPLOYMENT: nginx 
+  K8S_NAMESPACE: production
+  K8S_DEPLOYMENT: nginx-app-deployment
 
 jobs:
   build_push:
