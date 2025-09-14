@@ -73,11 +73,13 @@ jobs:
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           ls -la ~/ | grep .ssh || echo "No .ssh directory found"
           # Save the private key to a file with strict permissions
           cat > ~/.ssh/ssh_key << EOF
           ${{ secrets.BASTION_SSH_PRIVATE_KEY }}
           EOF
+          chmod 600 ~/.ssh/ssh_key
           ls -la ~/.ssh/
           echo "Key file contents (first few chars):"
           head -c 100 ~/.ssh/ssh_key
