@@ -88,13 +88,13 @@ jobs:
           ssh-keygen -l -f ~/.ssh/ssh_key || echo "Key format issue detected"
           # Optionally, trust the bastion host's public key to avoid interactive prompt
           ssh-keyscan -H ${{ secrets.BASTION_HOST }} > ~/.ssh/known_hosts
-          ssh -vvv -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "echo 'Connection successful'"
+          ssh -vvv -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
         shell: bash
 
       # Step 3: SSH into the bastion and run the command
-      - name: Run kubectl get nodes on Bastion
-        run: |
-          ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
+      # - name: Run kubectl get nodes on Bastion
+      #   run: |
+      #     ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
     # steps:
     #   - name: Install kubectl
     #     uses: azure/setup-kubectl@v4
