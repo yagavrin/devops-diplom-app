@@ -22,8 +22,8 @@ jobs:
   build_push:
     name: Prepare image
     runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.set-image-ref.outputs.result_image }}
+    # outputs:
+    #   image-tag: ${{ steps.set-image-ref.outputs.result_image }}
     environment: prod 
     permissions:
       contents: read
@@ -47,7 +47,7 @@ jobs:
           images: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}
           tags: |
             type=raw,value=latest
-            type=sha,format=short
+            type=raw,value=${{ github.sha.substr(0,7) }}
             type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Build & Push
@@ -61,11 +61,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Set image reference output
-        id: set-image-ref
-        run: |
-          # Use the SHA tag (second tag in the list) for precise reference
-          echo "result_image=cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ steps.meta.outputs.version-short }}" >> $GITHUB_OUTPUT
+      # - name: Set image reference output
+      #   id: set-image-ref
+      #   run: |
+      #     # Use the SHA tag (second tag in the list) for precise reference
+      #     echo "result_image=cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ steps.meta.outputs.version-short }}" >> $GITHUB_OUTPUT
   deploy:
     needs: build_push
     # if: startsWith(github.ref, 'refs/tags/')
@@ -75,10 +75,7 @@ jobs:
       # Step 1: Checkout the code (optional, but often useful for having scripts or configs)
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Use across jobs
-        run: |
-          echo "Deploying: ${{ needs.build_push.outputs.result_image }}"
+        
       # Step 2: Install the SSH key and known_hosts
       - name: Configure SSH
         run: |
@@ -91,11 +88,11 @@ jobs:
           eval "$(ssh-agent -s)"
           echo "${{ secrets.SSH_PASSPHRASE }}" | ssh-add ~/.ssh/ssh_key
           ssh-keyscan -H ${{ secrets.BASTION_HOST }} > ~/.ssh/known_hosts
-          # ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
-          #   IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${GITHUB_SHA:0:7}\"
-          #   kubectl -n \"${{ env.K8S_NAMESPACE }}\" set image deployment/${{ env.K8S_DEPLOYMENT }} \
-          #     nginx=\"\$IMG\"
-          #   kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
+          ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
+            IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${GITHUB_SHA:0:7}\"
+            kubectl -n \"${{ env.K8S_NAMESPACE }}\" set image deployment/${{ env.K8S_DEPLOYMENT }} \
+              nginx=\"\$IMG\"
+            kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
           "
         shell: bash
 
