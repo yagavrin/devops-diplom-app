@@ -94,7 +94,7 @@ jobs:
       # Step 3: SSH into the bastion and run the command
       - name: Run kubectl get nodes on Bastion
         run: |
-          ssh ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
+          ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
     # steps:
     #   - name: Install kubectl
     #     uses: azure/setup-kubectl@v4
