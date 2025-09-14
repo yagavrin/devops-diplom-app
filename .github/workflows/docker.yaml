@@ -75,10 +75,16 @@ jobs:
           mkdir -p ~/.ssh
           ls -la ~/ | grep .ssh || echo "No .ssh directory found"
           # Save the private key to a file with strict permissions
-          echo "${{ secrets.BASTION_SSH_PRIVATE_KEY }}" > ~/.ssh/ssh_key
-          
+          cat > ~/.ssh/ssh_key << EOF
+          ${{ secrets.BASTION_SSH_PRIVATE_KEY }}
+          EOF
+          ls -la ~/.ssh/
+          echo "Key file contents (first few chars):"
+          head -c 100 ~/.ssh/ssh_key
+          ssh-keygen -l -f ~/.ssh/ssh_key || echo "Key format issue detected"
           # Optionally, trust the bastion host's public key to avoid interactive prompt
           ssh-keyscan -H ${{ secrets.BASTION_HOST }} > ~/.ssh/known_hosts
+          ssh -vvv -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "echo 'Connection successful'"
         shell: bash
 
       # Step 3: SSH into the bastion and run the command
