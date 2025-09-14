@@ -80,6 +80,8 @@ jobs:
           ${{ secrets.BASTION_SSH_PRIVATE_KEY }}
           EOF
           chmod 600 ~/.ssh/ssh_key
+          eval "$(ssh-agent -s)"
+          echo "${{ secrets.SSH_PASSPHRASE }}" | ssh-add ~/.ssh/ssh_key
           ls -la ~/.ssh/
           echo "Key file contents (first few chars):"
           head -c 100 ~/.ssh/ssh_key
