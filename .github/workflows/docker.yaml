@@ -82,7 +82,7 @@ jobs:
           echo "${{ secrets.SSH_PASSPHRASE }}" | ssh-add ~/.ssh/ssh_key
           ssh-keyscan -H ${{ secrets.BASTION_HOST }} > ~/.ssh/known_hosts
           ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
-            IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.ref_name }}\"
+            IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${GITHUB_SHA:0:7}\"
             kubectl -n \"${{ env.K8S_NAMESPACE }}\" set image deployment/${{ env.K8S_DEPLOYMENT }} \
               nginx=\"\$IMG\"
             kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
