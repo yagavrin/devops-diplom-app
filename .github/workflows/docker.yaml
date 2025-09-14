@@ -1,9 +1,9 @@
 name: CI & CD (build on commit, deploy on tag)
 
 on:
-  # push:
-  #   branches: [ "main" ]
-  #   tags: [ "v*" ]
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
   workflow_dispatch:
 
 concurrency:
@@ -22,8 +22,6 @@ jobs:
   build_push:
     name: Prepare image
     runs-on: ubuntu-latest
-    # outputs:
-    #   image-tag: ${{ steps.set-image-ref.outputs.result_image }}
     environment: prod 
     permissions:
       contents: read
@@ -63,22 +61,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # - name: Set image reference output
-      #   id: set-image-ref
-      #   run: |
-      #     # Use the SHA tag (second tag in the list) for precise reference
-      #     echo "result_image=cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ steps.meta.outputs.version-short }}" >> $GITHUB_OUTPUT
   deploy:
     needs: build_push
-    # if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     environment: prod
     steps:
-      # Step 1: Checkout the code (optional, but often useful for having scripts or configs)
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      # Step 2: Install the SSH key and known_hosts
+
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
@@ -97,37 +88,3 @@ jobs:
             kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
           "
         shell: bash
-
-      # Step 3: SSH into the bastion and run the command
-      # - name: Run kubectl get nodes on Bastion
-      #   run: |
-      #     ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
-    # steps:
-    #   - name: Install kubectl
-    #     uses: azure/setup-kubectl@v4
-
-    #   - name: Write kubeconfig (decode base64)
-    #     run: |
-    #       echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > $GITHUB_WORKSPACE/kubeconfig
-    #       echo "KUBECONFIG=$GITHUB_WORKSPACE/kubeconfig" >> $GITHUB_ENV
-
-    #   - name: Show kubeconfig headers (debug)
-    #     run: |
-    #       head -n 5 "$KUBECONFIG" || true
-    #       kubectl config view --minify || true
-    #   - name: Start SSH tunnel
-    #     run: |
-    #       ssh -f -i $GITHUB_WORKSPACE/ssh_key \
-    #         -o StrictHostKeyChecking=no \
-    #         -L 6443:$:6443 user@bastion-host \
-    #         -N
-    #       echo "KUBECONFIG=$GITHUB_WORKSPACE/kubeconfig" >> $GITHUB_ENV
-    #   - name: Get nodes
-    #     run: |
-    #       kubectl get nodes
-      # - name: Set image to tag & rollout
-      #   run: |
-      #     IMG="cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.ref_name }}"
-      #     kubectl -n "${{ env.K8S_NAMESPACE }}" set image deployment/${{ env.K8S_DEPLOYMENT }} \
-      #       ${{ env.K8S_DEPLOYMENT }}="$IMG"
-      #     kubectl -n "${{ env.K8S_NAMESPACE }}" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
