@@ -19,48 +19,55 @@ env:
   K8S_DEPLOYMENT: nginx-app-deployment
 
 jobs:
-  # build_push:
-  #   name: Prepare image
-  #   runs-on: ubuntu-latest
-  #   environment: prod 
-  #   permissions:
-  #     contents: read
-  #     id-token: write
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+  build_push:
+    name: Prepare image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.set-image-ref.outputs.result_image }}
+    environment: prod 
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  #     - name: Login to YCR
-  #       uses: yc-actions/yc-cr-login@v3
-  #       with:
-  #         yc-sa-id: ${{ secrets.YC_SA_ID }}
+      - name: Login to YCR
+        uses: yc-actions/yc-cr-login@v3
+        with:
+          yc-sa-id: ${{ secrets.YC_SA_ID }}
 
-  #     - name: Extract metadata (labels, tags)
-  #       id: meta
-  #       uses: docker/metadata-action@v5
-  #       with:
-  #         images: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}
-  #         tags: |
-  #           type=raw,value=latest
-  #           type=sha,format=short
-  #           type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+      - name: Extract metadata (labels, tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
-  #     - name: Build & Push
-  #       uses: docker/build-push-action@v6
-  #       with:
-  #         context: ${{ env.CONTEXT }}
-  #         file: ${{ env.DOCKERFILE }}
-  #         push: true
-  #         platforms: linux/amd64
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
-  #         cache-from: type=gha
-  #         cache-to: type=gha,mode=max
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Set image reference output
+        id: set-image-ref
+        run: |
+          # Use the SHA tag (second tag in the list) for precise reference
+          echo "result_image=cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ steps.meta.outputs.version-short }}" >> $GITHUB_OUTPUT
   deploy:
-    # needs: build_push
+    needs: build_push
     # if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     environment: prod
@@ -69,6 +76,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Use across jobs
+        run: |
+          echo "Deploying: ${{ needs.build_push.outputs.result_image }}"
       # Step 2: Install the SSH key and known_hosts
       - name: Configure SSH
         run: |
@@ -81,11 +91,11 @@ jobs:
           eval "$(ssh-agent -s)"
           echo "${{ secrets.SSH_PASSPHRASE }}" | ssh-add ~/.ssh/ssh_key
           ssh-keyscan -H ${{ secrets.BASTION_HOST }} > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
-            IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${GITHUB_SHA:0:7}\"
-            kubectl -n \"${{ env.K8S_NAMESPACE }}\" set image deployment/${{ env.K8S_DEPLOYMENT }} \
-              nginx=\"\$IMG\"
-            kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
+          # ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
+          #   IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${GITHUB_SHA:0:7}\"
+          #   kubectl -n \"${{ env.K8S_NAMESPACE }}\" set image deployment/${{ env.K8S_DEPLOYMENT }} \
+          #     nginx=\"\$IMG\"
+          #   kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
           "
         shell: bash
 
