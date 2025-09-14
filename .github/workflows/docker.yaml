@@ -15,7 +15,7 @@ env:
   CR_REPOSITORY: nginx
   DOCKERFILE: ./nginx/Dockerfile
   CONTEXT: nginx
-  K8S_NAMESPACE: production
+  K8S_NAMESPACE: default
   K8S_DEPLOYMENT: nginx-app-deployment
 
 jobs:
@@ -74,21 +74,18 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ls -la ~/ | grep .ssh || echo "No .ssh directory found"
-          # Save the private key to a file with strict permissions
           cat > ~/.ssh/ssh_key << EOF
           ${{ secrets.BASTION_SSH_PRIVATE_KEY }}
           EOF
           chmod 600 ~/.ssh/ssh_key
           eval "$(ssh-agent -s)"
           echo "${{ secrets.SSH_PASSPHRASE }}" | ssh-add ~/.ssh/ssh_key
-          ls -la ~/.ssh/
-          echo "Key file contents (first few chars):"
-          head -c 100 ~/.ssh/ssh_key
-          ssh-keygen -l -f ~/.ssh/ssh_key || echo "Key format issue detected"
-          # Optionally, trust the bastion host's public key to avoid interactive prompt
-          ssh-keyscan -H ${{ secrets.BASTION_HOST }} > ~/.ssh/known_hosts
-          ssh -vvv -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "kubectl get nodes"
+          ssh -i ~/.ssh/ssh_key ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
+            IMG=\"cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.ref_name }}\"
+            kubectl -n \"${{ env.K8S_NAMESPACE }}\" set image deployment/${{ env.K8S_DEPLOYMENT }} \
+              ${{ env.K8S_DEPLOYMENT }}=\"\$IMG\"
+            kubectl -n \"${{ env.K8S_NAMESPACE }}\" rollout status deployment/${{ env.K8S_DEPLOYMENT }}
+          "
         shell: bash
 
       # Step 3: SSH into the bastion and run the command
